@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title></title>
+  <script src="js/aframe.js"></script>
+  <script src="/socket.io/socket.io.js"></script>
+    <!-- <script type="text/javascript">
+    var boxEl = document.querySelector('a-box');
+    boxEl.addEventListener('mouseenter', function () {
+      boxEl.setAttribute('scale', {x: 2, y: 2, z: 2});
+    });
+  </script> -->
+
+  <script>
+  AFRAME.registerComponent('scale-on-mouseenter', {
+    schema: {
+      to: {default: '2.5 2.5 2.5'}
+    },
+    init: function () {
+      var data = this.data;
+      this.el.addEventListener('mouseenter', function () {
+        this.setAttribute('scale', data.to);
+      });
+    }
+  });
+  </script>
+
+</head>
+<body>
+  <a-scene id="scene">
+    <a-assets>
+      <!-- <img id="boxTexture" src="https://i.imgur.com/mYmmbrp.jpg" crossorigin="anonymous"> -->
+      <!-- <img id="skyTexture"  src="img/sky.jpg"> -->
+      <img id="groundTexture" src="https://cdn.aframe.io/a-painter/images/floor.jpg" crossorigin="anonymous">
+
+      <!-- <audio id="bgnoise" src="backgroundnoise.wav" preload crossorigin="anonymous"></audio> -->
+      <img id="texture" src="img/box.jpg">
+    </a-assets>
+
+    <a-sky src="#skyTexture"></a-sky>
+    <!-- <a-sound src="#bgnoise" autoplay="true"></a-sound> -->
+
+
+    <a-box position="0 2 0" rotation="0 45 45" scale="1 1 1">
+      
+    </a-box>
+
+    
+    <a-box src="#boxTexture" color="red" position="0 2 -5" rotation="0 45 45" scale="2 2 2"
+    scale-on-mouseenter="to: 2.2 2.2 2.2">
+      <a-animation attribute="position" to="0 2.2 -5" direction="alternate" dur="2000"
+      repeat="indefinite"></a-animation>
+      <a-animation attribute="scale" begin="mouseenter" dur="300" to="2.3 2.3 2.3"></a-animation>
+      <a-animation attribute="scale" begin="mouseleave" dur="300" to="2 2 2"></a-animation>
+      <a-animation attribute="rotation" begin="click" dur="2000" to="360 405 45"></a-animation>
+    </a-box>
+
+    
+    <a-plane src="#groundTexture" rotation="-90 0 0" width="10" height="10" repeat="10 10"></a-plane>
+
+    <a-light type="ambient" color="#445451"></a-light>
+    <a-light type="point" intensity="2" position="2 4 4"></a-light>
+
+    <a-camera class="player">
+      <a-sphere position="0 0 0"></a-sphere>
+      <a-cursor color="white"></a-cursor>
+    </a-camera>
+
+    <a-text value="Hello, A-Frame!" color="#BBB" position="-0.9 0.2 -3" scale="1.5 1.5 1.5"></a-text>
+  </a-scene>
+
+  <script>
+  var scene = document.querySelector("#scene");
+  var socket = io();
+  
+  socket.on("connection_ready", function(msg){
+    var me = document.querySelector(".player");
+    me.setAttribute("id", socket.id);
+    
+    for(var i = 0; i < Object.keys(msg).length; i++){
+      value = Object.keys(msg)[i];
+      if(msg[value]["id"] == socket.id){ continue; }
+      generate_player(msg[value]["id"], msg[value]["position"])  
+    }
+  });
+
+  socket.on('new_player_connected', function(msg){
+    generate_player(msg.player_id, msg.position);
+  });
+  socket.on('player_disconnected', function(msg){
+    derezze_player(msg);
+  });
+
+  function generate_player(id, position) {
+    player = document.createElement("a-sphere");
+    player.setAttribute("id", id)
+    player.setAttribute("position", position)
+    scene.appendChild(player);
+    console.log("new player created with id " + id);
+  }
+
+  function derezze_player(id) {
+    var playerToDestroy = document.querySelector("#" + id);
+    if(playerToDestroy){
+      playerToDestroy.parentNode.removeChild(playerToDestroy);
+      console.log("player destroyed with id" + id)
+    }
+  }
+
+  var player = document.querySelector(".player");
+  player.addEventListener('componentchanged', function (evt) {
+    if (evt.detail.name !== 'position') { return; }
+    socket.emit('update_player_position', {
+      'player_id': socket.id,
+      'position' :evt.detail.newData
+    })
+  });
+
+  socket.on('update_object_position', function(msg){
+    
+    var object = document.querySelector("#" + msg.player_id);
+    object.setAttribute("position", msg.position)
+  });
+  </script>
+
+</body>
+</html>
